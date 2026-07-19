@@ -12,6 +12,20 @@ const api = axios.create({
   },
 });
 
+// Add a request interceptor to attach JWT token to all requests
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('authToken');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -105,12 +119,12 @@ export const AuthProvider = ({ children }) => {
     try {
       setIsLoading(true);
       await api.post('/logout');
-      setUser(null);
-      setIsAuthenticated(false);
-      localStorage.removeItem('authToken');
     } catch (err) {
       console.error('Logout error:', err);
     } finally {
+      setUser(null);
+      setIsAuthenticated(false);
+      localStorage.removeItem('authToken');
       setIsLoading(false);
     }
   };
