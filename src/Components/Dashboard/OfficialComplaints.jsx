@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AlertCircle, CheckCircle, Flame, Filter, Loader2, MapPin, Calendar, CheckSquare, MessageSquare, X } from 'lucide-react';
+import ComplaintDetailModal from './ComplaintDetailModal';
 
 export default function OfficialComplaints({ user }) {
   const [complaints, setComplaints] = useState([]);
@@ -14,6 +15,9 @@ export default function OfficialComplaints({ user }) {
   const [selectedComplaintId, setSelectedComplaintId] = useState('');
   const [resolutionStatement, setResolutionStatement] = useState('');
   const [submittingResolution, setSubmittingResolution] = useState(false);
+
+  // Detailed Modal state
+  const [selectedDetailComplaint, setSelectedDetailComplaint] = useState(null);
 
   // Status Colors styling
   const statusColors = {
@@ -233,7 +237,11 @@ export default function OfficialComplaints({ user }) {
                     : 'Anonymous';
                   
                   return (
-                    <tr key={c._id} className="hover:bg-[#0b1329]/30 transition-colors">
+                    <tr 
+                      key={c._id} 
+                      onClick={() => setSelectedDetailComplaint(c)}
+                      className="hover:bg-[#0b1329]/30 transition-colors cursor-pointer"
+                    >
                       <td className="py-4 pl-2 font-mono text-amber-500 font-semibold text-xs">
                         CMP-{c._id.substring(18).toUpperCase()}
                       </td>
@@ -260,6 +268,7 @@ export default function OfficialComplaints({ user }) {
                         <select
                           value={c.status || 'Open'}
                           onChange={(e) => handleStatusChangeTrigger(c._id, e.target.value)}
+                          onClick={(e) => e.stopPropagation()}
                           className="bg-[#060A14] border border-slate-800 text-xs font-mono text-slate-300 rounded-lg px-2 py-1 outline-none cursor-pointer focus:border-amber-500/50"
                         >
                           {['Open', 'Resolved', 'Escalated'].map((st) => (
@@ -332,6 +341,15 @@ export default function OfficialComplaints({ user }) {
             </form>
           </div>
         </div>
+      )}
+
+      {/* DETAIL MODAL OVERLAY */}
+      {selectedDetailComplaint && (
+        <ComplaintDetailModal
+          isOpen={!!selectedDetailComplaint}
+          onClose={() => setSelectedDetailComplaint(null)}
+          complaint={selectedDetailComplaint}
+        />
       )}
 
     </div>

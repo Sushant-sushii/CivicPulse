@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { Plus, Clock, Shield, Navigation, BarChart3, Bell, FileText, Layers, Menu, X } from 'lucide-react';
+import { Plus, Clock, Shield, Navigation, BarChart3, Bell, FileText, Layers, Menu, X, Megaphone, CheckCheck, Calendar } from 'lucide-react';
 
 export default function TopBar({ activeTab, setActiveTab }) {
   const { user, logout } = useAuth();
 
-  // रोल के आधार पर नेविगेशन आइटम्स तय करना
+  // Navigation Items
   const citizenItems = [
     { id: 'report', label: 'Report Issue', icon: Plus },
     { id: 'track', label: 'Track', icon: Clock },
@@ -23,7 +23,61 @@ export default function TopBar({ activeTab, setActiveTab }) {
   ];
 
   const [isOpen, setIsOpen] = useState(false);
+  const [announcements, setAnnouncements] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const dropdownRef = useRef(null);
+
   const navItems = user?.role === 'official' ? officialItems : citizenItems;
+
+  useEffect(() => {
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 30000); // Refresh every 30s
+    return () => clearInterval(interval);
+  }, []);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setShowNotifications(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const fetchNotifications = async () => {
+    try {
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || '';
+      const response = await fetch(`${baseUrl}/api/announcements`);
+      const result = await response.json();
+      if (response.ok && result.success) {
+        const list = result.announcements || [];
+        setAnnouncements(list);
+
+        const lastRead = localStorage.getItem('lastReadAnnouncementTimestamp') || '0';
+        const unread = list.filter(a => new Date(a.createdAt).getTime() > parseInt(lastRead, 10));
+        setUnreadCount(unread.length);
+      }
+    } catch (err) {
+      console.error('Error fetching notifications:', err);
+    }
+  };
+
+  const markAllAsRead = () => {
+    const now = Date.now().toString();
+    localStorage.setItem('lastReadAnnouncementTimestamp', now);
+    setUnreadCount(0);
+  };
+
+  const handleNotificationClick = (announcement) => {
+    markAllAsRead();
+    setShowNotifications(false);
+    if (setActiveTab) {
+      setActiveTab('announcements');
+    }
+  };
 
   return (
     <header className="w-full bg-[#060A14]/80 backdrop-blur-md border-b border-slate-800/80 px-6 py-3 flex items-center justify-between sticky top-0 z-40">
@@ -61,12 +115,15 @@ export default function TopBar({ activeTab, setActiveTab }) {
               onClick={() => setActiveTab && setActiveTab(item.id)}
               className="flex items-center gap-2 px-1 pb-2 font-mono text-xs font-medium tracking-wide transition-all cursor-pointer relative border-b-2 bg-transparent"
               style={{
-                borderColor: isActive ? '#f59e0b' : 'transparent', // Match the yellow/amber indicator line
+                borderColor: isActive ? '#f59e0b' : 'transparent',
                 color: isActive ? '#f59e0b' : '#94a3b8',
               }}
             >
               <Icon size={14} className={isActive ? 'text-amber-500' : 'text-slate-400'} />
               {item.label}
+              {item.id === 'announcements' && unreadCount > 0 && (
+                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+              )}
             </button>
           );
         })}
@@ -79,10 +136,90 @@ export default function TopBar({ activeTab, setActiveTab }) {
           AI Active
         </div>
 
-        <button className="p-2 rounded-full bg-slate-900 text-slate-400 hover:text-white relative border border-slate-800 cursor-pointer">
-          <Bell size={14} />
-          <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-amber-500" />
-        </button>
+        {/* Active Notification Bell */}
+        <div className="relative" ref={dropdownRef}>
+          <button 
+            onClick={() => setShowNotifications(!showNotifications)}
+            className="p-2 rounded-full bg-slate-900 text-slate-400 hover:text-white relative border border-slate-800 cursor-pointer transition-colors"
+            title="System Notifications"
+          >
+            <Bell size={14} className={unreadCount > 0 ? 'text-amber-400' : ''} />
+            {unreadCount > 0 ? (
+              <span className="absolute -top-1 -right-1 bg-amber-500 text-black text-[9px] font-mono font-bold px-1.5 py-0.5 rounded-full flex items-center justify-center border border-slate-950 animate-pulse shadow-[0_0_8px_rgba(245,158,11,0.5)]">
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            ) : (
+              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-slate-700" />
+            )}
+          </button>
+
+          {/* Notifications Dropdown Tray */}
+          {showNotifications && (
+            <div className="absolute right-0 mt-3 w-80 sm:w-96 bg-[#0b1329] border border-slate-800 rounded-2xl shadow-2xl p-4 z-50 text-left animate-fadeIn">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                <div className="flex items-center gap-2">
+                  <Megaphone size={14} className="text-amber-500" />
+                  <span className="font-display text-xs font-bold uppercase tracking-wider text-white">
+                    Announcements Feed
+                  </span>
+                </div>
+                {unreadCount > 0 && (
+                  <button 
+                    onClick={markAllAsRead}
+                    className="text-[10px] font-mono text-amber-500 hover:text-amber-400 flex items-center gap-1 cursor-pointer"
+                  >
+                    <CheckCheck size={12} /> Mark read
+                  </button>
+                )}
+              </div>
+
+              <div className="max-h-72 overflow-y-auto divide-y divide-slate-800/40 my-2 custom-scrollbar">
+                {announcements.length === 0 ? (
+                  <div className="py-8 text-center text-xs font-mono text-slate-500">
+                    No announcements available
+                  </div>
+                ) : (
+                  announcements.slice(0, 5).map((a) => (
+                    <div 
+                      key={a._id}
+                      onClick={() => handleNotificationClick(a)}
+                      className="py-3 px-2 hover:bg-[#060A14]/50 rounded-xl transition-colors cursor-pointer space-y-1 group"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono text-[10px] text-amber-400 font-bold uppercase truncate max-w-[200px]">
+                          {a.officialName || a.department || 'Official Broadcast'}
+                        </span>
+                        <span className="font-mono text-[9px] text-slate-500 flex items-center gap-1">
+                          <Calendar size={10} />
+                          {new Date(a.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                        </span>
+                      </div>
+                      <h5 className="text-xs font-semibold text-white group-hover:text-amber-400 transition-colors line-clamp-1">
+                        {a.title}
+                      </h5>
+                      <p className="text-[11px] text-slate-400 line-clamp-2 leading-relaxed font-body">
+                        {a.content}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div className="border-t border-slate-800 pt-2.5 text-center">
+                <button 
+                  onClick={() => {
+                    markAllAsRead();
+                    setShowNotifications(false);
+                    if (setActiveTab) setActiveTab('announcements');
+                  }}
+                  className="font-mono text-[10px] uppercase font-bold text-slate-400 hover:text-amber-400 transition-colors cursor-pointer"
+                >
+                  View All Announcements &rarr;
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
 
         <button 
           onClick={logout}

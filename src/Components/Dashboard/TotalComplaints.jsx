@@ -1,14 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Loader2, AlertCircle, FileText, CheckCircle, Flame, BarChart3, TrendingUp, ShieldAlert, ArrowRight, MapPin, Calendar, Clock, X } from 'lucide-react';
-
-const MUNICIPAL_DEPARTMENTS = [
-  "Public Works Department (PWD) / Infrastructure",
-  "Water & Sewage Bureau",
-  "Electricity Supply Board",
-  "Sanitation & Waste Management Division",
-  "Urban Forestry & Parks Bureau",
-  "Traffic & Street Light Management"
-];
+import ComplaintDetailModal from './ComplaintDetailModal';
+import { SYSTEM_DEPARTMENTS } from '../../utils/constants';
 
 export default function TotalComplaints({ user }) {
   const [complaints, setComplaints] = useState([]);
@@ -29,6 +22,9 @@ export default function TotalComplaints({ user }) {
   const [selectedDept, setSelectedDept] = useState('');
   const [selectedDeptComplaints, setSelectedDeptComplaints] = useState([]);
   const [accessDeniedError, setAccessDeniedError] = useState('');
+
+  // Detailed Modal state
+  const [selectedDetailComplaint, setSelectedDetailComplaint] = useState(null);
 
   const statusColors = {
     Open: 'text-amber-500 bg-amber-500/10 border-amber-500/30',
@@ -71,7 +67,7 @@ export default function TotalComplaints({ user }) {
 
   const calculateAggregates = (allComplaints) => {
     const statsMap = {};
-    MUNICIPAL_DEPARTMENTS.forEach(dept => {
+    SYSTEM_DEPARTMENTS.forEach(dept => {
       statsMap[dept] = { name: dept, total: 0, open: 0, resolved: 0, escalated: 0 };
     });
 
@@ -83,8 +79,12 @@ export default function TotalComplaints({ user }) {
     allComplaints.forEach(c => {
       let deptName = c.department;
       
-      if (!deptName || !MUNICIPAL_DEPARTMENTS.includes(deptName)) {
-        deptName = 'Other / Municipal Services';
+      if (!deptName || !SYSTEM_DEPARTMENTS.includes(deptName)) {
+        const matched = SYSTEM_DEPARTMENTS.find(s => 
+          s.toLowerCase().includes(deptName?.toLowerCase() || '') ||
+          (deptName?.toLowerCase() || '').includes(s.toLowerCase())
+        );
+        deptName = matched || deptName || 'Other / Municipal Services';
       }
 
       if (!statsMap[deptName]) {
@@ -136,8 +136,12 @@ export default function TotalComplaints({ user }) {
       // Access granted: Filter and show complaints
       const filtered = complaints.filter(c => {
         let cDept = c.department;
-        if (!cDept || !MUNICIPAL_DEPARTMENTS.includes(cDept)) {
-          cDept = 'Other / Municipal Services';
+        if (!cDept || !SYSTEM_DEPARTMENTS.includes(cDept)) {
+          const matched = SYSTEM_DEPARTMENTS.find(s => 
+            s.toLowerCase().includes(cDept?.toLowerCase() || '') ||
+            (cDept?.toLowerCase() || '').includes(s.toLowerCase())
+          );
+          cDept = matched || cDept || 'Other / Municipal Services';
         }
         return cDept.toLowerCase() === deptName.toLowerCase();
       });
@@ -323,7 +327,11 @@ export default function TotalComplaints({ user }) {
                       : 'Anonymous';
                       
                     return (
-                      <tr key={index} className="hover:bg-[#0b1329]/30 transition-colors">
+                      <tr 
+                        key={index} 
+                        onClick={() => setSelectedDetailComplaint(c)} 
+                        className="hover:bg-[#0b1329]/30 transition-colors cursor-pointer"
+                      >
                         <td className="py-3 pl-2 font-mono text-xs text-amber-500 font-semibold">
                           CMP-{c._id.substring(18).toUpperCase()}
                         </td>
@@ -348,6 +356,15 @@ export default function TotalComplaints({ user }) {
             </div>
           )}
         </div>
+      )}
+
+      {/* DETAIL MODAL OVERLAY */}
+      {selectedDetailComplaint && (
+        <ComplaintDetailModal
+          isOpen={!!selectedDetailComplaint}
+          onClose={() => setSelectedDetailComplaint(null)}
+          complaint={selectedDetailComplaint}
+        />
       )}
 
     </div>

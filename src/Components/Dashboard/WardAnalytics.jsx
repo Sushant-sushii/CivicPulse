@@ -1,15 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell } from 'recharts';
 import { Loader2, AlertCircle, FileText, CheckCircle, Flame, BarChart3, TrendingUp, Award, ShieldAlert, Sparkles, Activity, Clock, X } from 'lucide-react';
-
-const MUNICIPAL_DEPARTMENTS = [
-  "Public Works Department (PWD) / Infrastructure",
-  "Water & Sewage Bureau",
-  "Electricity Supply Board",
-  "Sanitation & Waste Management Division",
-  "Urban Forestry & Parks Bureau",
-  "Traffic & Street Light Management"
-];
+import { SYSTEM_DEPARTMENTS } from '../../utils/constants';
 
 export default function WardAnalytics() {
   const [complaints, setComplaints] = useState([]);
@@ -77,7 +69,7 @@ export default function WardAnalytics() {
     const dailyMap = {};
     const deptResolvedMap = {};
 
-    MUNICIPAL_DEPARTMENTS.forEach(dept => {
+    SYSTEM_DEPARTMENTS.forEach(dept => {
       deptResolvedMap[dept] = { name: dept, total: 0, resolved: 0, open: 0, escalated: 0 };
     });
 
@@ -111,8 +103,12 @@ export default function WardAnalytics() {
       dailyMap[dateStr] = (dailyMap[dateStr] || 0) + 1;
 
       let dept = c.department;
-      if (!dept || !MUNICIPAL_DEPARTMENTS.includes(dept)) {
-        dept = 'Other / Municipal Services';
+      if (!dept || !SYSTEM_DEPARTMENTS.includes(dept)) {
+        const matched = SYSTEM_DEPARTMENTS.find(s => 
+          s.toLowerCase().includes(dept?.toLowerCase() || '') ||
+          (dept?.toLowerCase() || '').includes(s.toLowerCase())
+        );
+        dept = matched || dept || 'Other / Municipal Services';
       }
       if (!deptResolvedMap[dept]) {
         deptResolvedMap[dept] = { name: dept, total: 0, resolved: 0, open: 0, escalated: 0 };
@@ -149,8 +145,17 @@ export default function WardAnalytics() {
     timelineArray.reverse();
     setDailyTimeline(timelineArray.slice(-12));
 
-    const leaderboardArray = Object.values(deptResolvedMap);
-    leaderboardArray.sort((a, b) => b.resolved - a.resolved);
+    const leaderboardArray = Object.values(deptResolvedMap).map(d => ({
+      ...d,
+      resolutionRate: d.total > 0 ? Math.round((d.resolved / d.total) * 100) : 0
+    }));
+
+    leaderboardArray.sort((a, b) => {
+      if (b.resolutionRate !== a.resolutionRate) return b.resolutionRate - a.resolutionRate;
+      if (b.resolved !== a.resolved) return b.resolved - a.resolved;
+      return b.total - a.total;
+    });
+
     setLeaderboard(leaderboardArray);
 
     setSeverityCounts([
@@ -326,7 +331,7 @@ export default function WardAnalytics() {
               Department Performance Leaderboard
             </h3>
           </div>
-          <span className="font-mono text-[9px] uppercase tracking-wider text-slate-500">Ranked by Resolved Count</span>
+          <span className="font-mono text-[9px] uppercase tracking-wider text-slate-500">Ranked by Resolution Rate & Efficiency</span>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -347,16 +352,18 @@ export default function WardAnalytics() {
                     <div>
                       <h4 className="font-bold text-sm text-slate-200">{dept.name}</h4>
                       <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-400 font-mono">
-                        <span>Total Filed: <strong>{dept.total}</strong></span>
+                        <span>Total: <strong>{dept.total}</strong></span>
                         <span className="w-1.5 h-1.5 rounded-full bg-slate-800" />
                         <span className="text-amber-500">Open: <strong>{dept.open}</strong></span>
+                        <span className="w-1.5 h-1.5 rounded-full bg-slate-800" />
+                        <span className="text-red-400">Escalated: <strong>{dept.escalated}</strong></span>
                       </div>
                     </div>
                   </div>
 
                   <div className="text-right">
-                    <span className="font-mono text-[10px] uppercase text-emerald-400 block mb-0.5">Resolved</span>
-                    <span className="text-xl font-display font-black text-emerald-400">{dept.resolved}</span>
+                    <span className="font-mono text-[10px] uppercase text-emerald-400 block mb-0.5">Rate: {dept.resolutionRate}%</span>
+                    <span className="text-xl font-display font-black text-emerald-400">{dept.resolved} Resolved</span>
                   </div>
                 </div>
               );
@@ -368,10 +375,11 @@ export default function WardAnalytics() {
             <table className="w-full border-collapse text-left text-xs">
               <thead>
                 <tr className="border-b border-slate-950 font-mono text-[9px] uppercase tracking-wider text-slate-500 pb-2">
-                  <th className="pb-2 w-3/5">Other Departments</th>
+                  <th className="pb-2 w-2/5">Other Departments</th>
                   <th className="pb-2 text-center">Total</th>
                   <th className="pb-2 text-center text-emerald-400">Resolved</th>
                   <th className="pb-2 text-center text-red-400">Escalated</th>
+                  <th className="pb-2 text-right">Resolve Rate</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-950 text-slate-300">
@@ -381,6 +389,7 @@ export default function WardAnalytics() {
                     <td className="py-2.5 text-center font-mono font-bold">{dept.total}</td>
                     <td className="py-2.5 text-center font-mono font-bold text-emerald-400">{dept.resolved}</td>
                     <td className="py-2.5 text-center font-mono font-bold text-red-400">{dept.escalated}</td>
+                    <td className="py-2.5 text-right font-mono font-bold text-cyan-400">{dept.resolutionRate}%</td>
                   </tr>
                 ))}
               </tbody>

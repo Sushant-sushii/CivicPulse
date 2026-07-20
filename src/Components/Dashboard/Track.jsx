@@ -22,12 +22,18 @@ export default function Track({ setActiveTab }) {
       const token = localStorage.getItem('authToken') || localStorage.getItem('token');
       const userId = user.id || user._id;
       
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/complains/user/${userId}`, {
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || '';
+      const response = await fetch(`${baseUrl}/api/complains/user/${userId}`, {
         method: 'GET',
         headers: {
           ...(token && { 'Authorization': `Bearer ${token}` })
         }
       });
+      
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('text/html')) {
+        throw new Error('Server returned HTML instead of JSON. Please ensure backend service is running.');
+      }
       
       const result = await response.json();
       

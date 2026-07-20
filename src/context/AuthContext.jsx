@@ -3,10 +3,14 @@ import axios from 'axios';
 
 const AuthContext = createContext();
 
+const getBaseUrl = () => {
+  return import.meta.env.VITE_API_BASE_URL || '';
+};
+
 // Configure axios instance with base URL and CORS
 const api = axios.create({
-  baseURL: `${import.meta.env.VITE_API_BASE_URL}/api/auth`,
-  withCredentials: true, // Include cookies in requests for CORS
+  baseURL: `${getBaseUrl()}/api/auth`,
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -105,7 +109,7 @@ export const AuthProvider = ({ children }) => {
       }
     } catch (err) {
       const errorMessage =
-        err.response?.data?.message || 'Sign up failed. Please try again.';
+        err.response?.data?.message || err.response?.data?.error || err.message || 'Sign up failed. Please try again.';
       setError(errorMessage);
       setIsAuthenticated(false);
       setUser(null);
